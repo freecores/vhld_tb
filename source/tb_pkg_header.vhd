@@ -3,11 +3,11 @@
 -------------------------------------------------------------------------------
 -- $Author: sckoarn $
 --
--- $Date: 2007-04-06 04:06:48 $
+-- $Date: 2007-08-21 02:43:14 $
 --
 -- $Name: not supported by cvs2svn $
 --
--- $Id: tb_pkg_header.vhd,v 1.1.1.1 2007-04-06 04:06:48 sckoarn Exp $
+-- $Id: tb_pkg_header.vhd,v 1.2 2007-08-21 02:43:14 sckoarn Exp $
 --
 -- $Source: /home/marcus/revision_ctrl_test/oc_cvs/cvs/vhld_tb/source/tb_pkg_header.vhd,v $
 --
@@ -33,6 +33,9 @@
 -------------------------------------------------------------------------------
 -- Revision History:
 -- $Log: not supported by cvs2svn $
+-- Revision 1.1.1.1  2007/04/06 04:06:48  sckoarn
+-- Import of the vhld_tb
+--
 --
 -------------------------------------------------------------------------------
 library IEEE;
@@ -43,7 +46,7 @@ use std.textio.all;
 library ieee_proposed;
 use ieee_proposed.STD_LOGIC_1164_additions.all;
 
-package ew_tb_pkg2 is
+package tb_pkg is
 
   -- Constants
   constant max_str_len   : integer := 256;
@@ -216,4 +219,4 @@ package ew_tb_pkg2 is
 --   ** intended for testbench development debug**
   procedure dump_inst_sequ(variable inst_sequ  :  in  stim_line_ptr);
   
-end ew_tb_pkg2;
+end tb_pkg;
