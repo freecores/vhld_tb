@@ -48,6 +48,7 @@ clock_driver:
     variable inst_list    : inst_def_ptr;  -- the instruction list
     variable defined_vars : var_field_ptr; -- defined variables
     variable inst_sequ    : stim_line_ptr; -- the instruction sequence
+    variable file_list    : file_def_ptr;  -- pointer to the list of file names
 
     variable instruction  : text_field;   -- instruction field
     variable par1         : integer;      -- paramiter 1
@@ -130,6 +131,7 @@ clock_driver:
     define_instruction(inst_list, "END_LOOP", 0);
     define_instruction(inst_list, "IF", 3);
     define_instruction(inst_list, "ELSE", 0);
+    define_instruction(inst_list, "ELSEIF", 3);
     define_instruction(inst_list, "END_IF", 0);
     define_instruction(inst_list, "WHILE", 3);
     define_instruction(inst_list, "END_WHILE", 0);
@@ -148,14 +150,15 @@ clock_driver:
     
     ------------------------------------------------------------------------
     -- Read, test, and load the stimulus file
-    read_instruction_file(stimulus_file, inst_list, defined_vars, inst_sequ);
+    read_instruction_file(stimulus_file, inst_list, defined_vars, inst_sequ, 
+                          file_list);
 
 ------------------------------------------------------------------------
 -- Using the Instruction record list, get the instruction and implement
 -- it as per the statements in the elsif tree.
   while(v_line < inst_sequ.num_of_lines) loop
     v_line := v_line + 1;
-    access_inst_sequ(inst_sequ, defined_vars, v_line, instruction,
+    access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
          par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
 
 --------------------------------------------------------------------------
