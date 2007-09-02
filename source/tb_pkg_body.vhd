@@ -3,11 +3,11 @@
 -------------------------------------------------------------------------------
 -- $Author: sckoarn $
 --
--- $Date: 2007-04-06 04:06:48 $
+-- $Date: 2007-09-02 04:04:04 $
 --
 -- $Name: not supported by cvs2svn $
 --
--- $Id: tb_pkg_body.vhd,v 1.1.1.1 2007-04-06 04:06:48 sckoarn Exp $
+-- $Id: tb_pkg_body.vhd,v 1.2 2007-09-02 04:04:04 sckoarn Exp $
 --
 -- $Source: /home/marcus/revision_ctrl_test/oc_cvs/cvs/vhld_tb/source/tb_pkg_body.vhd,v $
 --
@@ -22,7 +22,7 @@
 --    the Free Software Foundation; either version 2 of the License, or
 --    (at your option) any later version.
 --
---    Foobar is distributed in the hope that it will be useful,
+--    The VHDL Test Bench is distributed in the hope that it will be useful,
 --    but WITHOUT ANY WARRANTY; without even the implied warranty of
 --    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 --    GNU General Public License for more details.
@@ -33,6 +33,9 @@
 -------------------------------------------------------------------------------
 -- Revision History:
 -- $Log: not supported by cvs2svn $
+-- Revision 1.1.1.1  2007/04/06 04:06:48  sckoarn
+-- Import of the vhld_tb
+--
 --
 -------------------------------------------------------------------------------
 
@@ -64,30 +67,6 @@ package body tb_pkg is
    end if;
    return rtn;
  end is_space;
----------------------------------------------------------------
-function ew_to_slv(value : in integer;
-                   length : in integer) return std_logic_vector is
-    variable result : std_logic_vector((length - 1) downto 0);
-    variable temp   : natural;
-    variable power  : natural;
-    
-  begin
-    assert(length > 1)
-      report LF & "Error: ew_to_slv, Bit length must be greater than 1 to form a vector! "
-    severity failure;
-    temp :=  value;
-    for i in (length - 1) downto 0 loop
-      power  :=  2**i;
-      if(temp > ((2**i) - 1)) then
-        result(i) := '1';
-        temp :=  temp - ((2**i) - 1);
-      else
-        result(i) := '0';
-      end if;
-    end loop;
-
-    return result;
-  end ew_to_slv;
 ------------------------------------------------------------------------------
 --  to_char
   function ew_to_char(int: integer) return character is
@@ -653,9 +632,9 @@ function stim_to_integer(field:      in text_field;
 --     outputs:
 --               valid  is 1 if valid 0 if not
   procedure update_variable(variable var_list : in  var_field_ptr;
-                           variable index    : in  integer;
-                           variable value    : in  integer;
-                           variable valid    : out integer) is
+                            variable index    : in  integer;
+                            variable value    : in  integer;
+                            variable valid    : out integer) is
     variable ptr:  var_field_ptr;
   begin
     ptr    :=  var_list;
@@ -879,8 +858,10 @@ function stim_to_integer(field:      in text_field;
   end tokenize_line;
 -------------------------------------------------------------------------------
 -- Add a new instruction to the instruction list
---   inputs  :   
---   outputs :   
+--   inputs  :   the linked list of instructions
+--               the instruction
+--               the number of args
+--   outputs :   Updated instruction set linked list
   procedure define_instruction(variable inst_set: inout inst_def_ptr;
                                constant inst:     in    string;
                                constant args:     in    integer) is
@@ -1121,8 +1102,8 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
                             variable token_num  :  in integer;
                             variable sequ_num   :  inout integer;
                             variable line_num   :  in integer;
-                            variable file_name  :  in text_line) is
---   variable temp_string:     string;
+                            variable file_name  :  in text_line;
+                            variable file_idx   :  in integer) is
    variable temp_stim_line:  stim_line_ptr;
    variable temp_current:    stim_line_ptr;
    variable valid:           integer;
@@ -1136,6 +1117,7 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
      l := fld_len(p1);
      --  Add the variable to the Variable pool, not considered an instruction
      add_variable(var_list,p1,p2,token_num,sequ_num,line_num,file_name,l);
+     valid := 0;  --Removes this from the instruction list 
    elsif(inst(l) = ':') then
      add_variable(var_list,inst,p1,token_num,sequ_num,line_num,file_name,l);
      valid := 0;
@@ -1153,7 +1135,7 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
      temp_stim_line.inst_field_6  := p6;
      temp_stim_line.txt           := str_ptr;
      temp_stim_line.line_number   := sequ_num;
-     temp_stim_line.file_name     := file_name;
+     temp_stim_line.file_idx     := file_idx;
      temp_stim_line.file_line     := line_num;
      
      -- if is not the first instruction
@@ -1173,12 +1155,153 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
    end if;
    
  end add_instruction;
+------------------------------------------------------------------------------
+-- test_inst_sequ
+--  This procedure accesses the full instruction sequence and checks for valid
+--   variables.  This is prior to the simulation run start.
+  procedure test_inst_sequ(variable inst_sequ  :  in  stim_line_ptr;
+                           variable file_list  :  in  file_def_ptr;
+                           variable var_list   :  in  var_field_ptr
+                          ) is
+    variable temp_text_field:     text_field;
+    variable temp_var:            text_field;
+    variable inst_ptr:            stim_line_ptr;
+    variable valid:               integer;
+    variable line:                integer;  -- value of the file_line
+    variable file_name:           text_line;
+    variable v_p:                 integer;
+    variable inst       :         text_field;
+    variable txt        :         stm_text_ptr;
+    variable inst_len   :         integer;
+    variable fname      :         text_line;
+    variable file_line  :         integer;
+    variable temp_fn_prt:         file_def_ptr;
+    variable tmp_int    :         integer;
+    
+  begin
+    inst_ptr  :=  inst_sequ;
+    -- go through all the instructions
+    while(inst_ptr.next_rec /= null) loop
+      inst := inst_ptr.instruction;
+      inst_len := fld_len(inst_ptr.instruction);
+      file_line := inst_ptr.file_line;
+      line      := inst_ptr.file_line;
+      -- recover the file name this line came from
+      temp_fn_prt := file_list;
+      tmp_int   :=  inst_ptr.file_idx;
+      while (temp_fn_prt.next_rec /= null) loop
+        if(temp_fn_prt.rec_idx = tmp_int) then
+          exit;
+        end if;
+        temp_fn_prt  :=  temp_fn_prt.next_rec;
+      end loop;
+      for i in 1 to fname'high loop
+        file_name(i) :=  temp_fn_prt.file_name(i);
+      end loop;
+
+      txt       := inst_ptr.txt;
+      -- load parameter one
+      temp_text_field  :=  inst_ptr.inst_field_1;
+      if(temp_text_field(1) /= nul) then
+        -- if this is a numaric  do nothing
+        if(temp_text_field(1) = 'x' or temp_text_field(1) = 'h' or
+           temp_text_field(1) = 'b' or is_digit(temp_text_field(1)) = true) then
+           null;
+        else  -- else is a variable, get the value or halt incase of error
+          access_variable(var_list,temp_text_field,v_p,valid);
+          assert(valid = 1)
+            report LF & "Error: First variable on stimulus line " & (integer'image(line))
+                      & " is not valid!!" & LF & "In file " & file_name
+          severity failure;
+        end if;
+      end if;
+      -- load parameter two
+      temp_text_field  :=  inst_ptr.inst_field_2;
+      if(temp_text_field(1) /= nul) then
+        -- if this is a numaric do nothing
+        if(temp_text_field(1) = 'x' or temp_text_field(1) = 'h' or
+           temp_text_field(1) = 'b' or is_digit(temp_text_field(1)) = true) then
+           null;
+        else  -- else is a variable, get the value or halt incase of error
+          access_variable(var_list,temp_text_field,v_p,valid);
+          assert(valid = 1)
+            report LF & "Error: Second variable on stimulus line " & (integer'image(line))
+                      & " is not valid!!" & LF & "In file " & file_name
+          severity failure;
+        end if;
+      end if;
+      -- load parameter three
+      temp_text_field  :=  inst_ptr.inst_field_3;
+      if(temp_text_field(1) /= nul) then
+        -- if this is a numaric do nothing
+        if(temp_text_field(1) = 'x' or temp_text_field(1) = 'h' or
+           temp_text_field(1) = 'b' or is_digit(temp_text_field(1)) = true) then
+           null;
+        else  -- else is a variable, get the value or halt incase of error
+          access_variable(var_list,temp_text_field,v_p,valid);
+          assert(valid = 1)
+            report LF & "Error: Third variable on stimulus line " & (integer'image(line))
+                      & " is not valid!!" & LF & "In file " & file_name
+          severity failure;
+        end if;
+      end if;
+      -- load parameter four
+      temp_text_field  :=  inst_ptr.inst_field_4;
+      if(temp_text_field(1) /= nul) then
+        -- if this is a numaric do nothing
+        if(temp_text_field(1) = 'x' or temp_text_field(1) = 'h' or
+           temp_text_field(1) = 'b'or is_digit(temp_text_field(1)) = true) then
+           null;
+        else  -- else is a variable, get the value or halt incase of error
+          access_variable(var_list,temp_text_field,v_p,valid);
+          assert(valid = 1)
+            report LF & "Error: Forth variable on stimulus line " & (integer'image(line))
+                      & " is not valid!!" & LF & "In file " & file_name
+          severity failure;
+        end if;
+      end if;
+      -- load parameter five
+      temp_text_field  :=  inst_ptr.inst_field_5;
+      if(temp_text_field(1) /= nul) then
+        -- if this is a numaric do nothing
+        if(temp_text_field(1) = 'x' or temp_text_field(1) = 'h' or
+          temp_text_field(1) = 'b' or is_digit(temp_text_field(1)) = true) then
+          null;
+        else  -- else is a variable, get the value or halt incase of error
+          access_variable(var_list,temp_text_field,v_p,valid);
+          assert(valid = 1)
+            report LF & "Error: Fifth variable on stimulus line " & (integer'image(line))
+                      & " is not valid!!" & LF & "In file " & file_name
+          severity failure;
+        end if;
+      end if;
+      -- load parameter six
+      temp_text_field  :=  inst_ptr.inst_field_6;
+      if(temp_text_field(1) /= nul) then
+        -- if this is a numaric field convert to integer
+        if(temp_text_field(1) = 'x' or temp_text_field(1) = 'h' or
+           temp_text_field(1) = 'b' or is_digit(temp_text_field(1)) = true) then
+           null;
+        else  -- else is a variable, get the value or halt incase of error
+          access_variable(var_list,temp_text_field,v_p,valid);
+          assert(valid = 1)
+            report LF & "Error: Sixth variable on stimulus line " & (integer'image(line))
+                      & " is not valid!!" & LF & "In file " & file_name
+          severity failure;
+        end if;
+      end if;
+      -- point to next record
+      inst_ptr := inst_ptr.next_rec;
+    end loop;
+    
+  end test_inst_sequ;
 --------------------------------------------------------------------------------
 --  The read include file procedure
 --    This is the main procedure for reading, parcing, checking and returning
 --    the instruction sequence Link list.
   procedure read_include_file(variable name:       text_line;
                               variable sequ_numb:  inout integer;
+                              variable file_list:  inout file_def_ptr;
                               variable inst_set:   inout inst_def_ptr;
                               variable var_list:   inout var_field_ptr;
                               variable inst_sequ:  inout stim_line_ptr;
@@ -1200,11 +1323,48 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
     variable v_sequ_ptr: stim_line_ptr;
     variable v_len:      integer;
     variable v_stat:     file_open_status;
+    variable idx:        integer;
+    variable v_tmp:      text_line;
+
+    variable v_tmp_fn_ptr: file_def_ptr;
+    variable v_new_fn:     integer;
+    variable v_tmp_fn:   file_def_ptr;
+    variable v_txt:      stm_text; --stm_text_ptr;
     
   begin
-    sequ_line  :=  sequ_numb;
-
-    file_open(v_stat, include_file, name, read_mode);
+    sequ_line     :=  sequ_numb;
+    v_tmp_fn_ptr  :=  file_list;
+    -- for linux systems, trailing spaces need to be removed
+    --    from file names
+    --  copy text string to temp
+    for i in 1 to c_stm_text_len loop
+      if(name(i) = nul) then
+        v_tmp(i) := name(i);
+        exit;
+      else
+        v_tmp(i) := name(i);
+      end if;
+    end loop;
+    --fix up any trailing white space in txt
+    idx  :=  0;
+    --    get to the end of the string
+    for i in 1 to c_stm_text_len loop
+      if(v_tmp(i) /= nul) then
+        idx  :=  idx + 1;
+      else
+        exit;
+      end if;
+    end loop;
+    --  now nul out spaces
+    for i in idx downto 1 loop
+      if(is_space(v_tmp(i)) = true) then
+        v_tmp(i) := nul;
+      else
+        exit;
+      end if;
+    end loop;
+    --  open include file
+    file_open(v_stat, include_file, v_tmp, read_mode);
     if(v_stat /= open_ok) then
       print("Error: Unable to open include file  " & name);
       status   :=  1;
@@ -1212,6 +1372,23 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
     end if;
     l_num      :=  1;  -- initialize line number
 
+    --  the file is opened, put it on the file name LL
+    while (v_tmp_fn_ptr.next_rec /= null) loop
+      v_tmp_fn_ptr :=  v_tmp_fn_ptr.next_rec;
+    end loop;
+    v_new_fn   :=  v_tmp_fn_ptr.rec_idx + 1;
+    v_tmp_fn            :=  new file_def;
+    v_tmp_fn_ptr.next_rec  :=  v_tmp_fn;
+    v_tmp_fn.rec_idx    := v_new_fn;
+    
+    --  nul the text line
+    v_tmp_fn.file_name  := (others => nul);
+    for i in 1 to name'high loop
+      v_tmp_fn.file_name(i)  := name(i);
+    end loop;
+    v_tmp_fn.next_rec  :=  null;
+
+    
     v_inst_ptr :=  inst_set;
     v_var_prt  :=  var_list;
     v_sequ_ptr :=  inst_sequ;
@@ -1223,15 +1400,17 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
       tokenize_line(l,t1,t2,t3,t4,t5,t6,t7,t_txt,valid);
       v_len  := fld_len(t1);
       if(t1(1 to v_len) = "INCLUDE") then
-        print("Nested INCLUDE statement found: " & t2);
-       assert(false)
-         report LF & "Error: Nested INCLUDE statements are not supported at this time."
-       severity failure;
+        print("Nested INCLUDE statement found in " & v_tmp & " on line " &
+              (integer'image(l_num)));
+        assert(false)
+          report LF & "Error: Nested INCLUDE statements are not supported at this time."
+        severity failure;
 
       -- if there was valid tokens
       elsif(valid /= 0) then
         check_valid_inst(t1, v_inst_ptr, valid, l_num, name);
-        add_instruction(v_sequ_ptr,v_var_prt,t1,t2,t3,t4,t5,t6,t7,t_txt,valid,sequ_line,l_num,name);
+        add_instruction(v_sequ_ptr,v_var_prt,t1,t2,t3,t4,t5,t6,t7,t_txt,valid,
+                        sequ_line,l_num,name,v_new_fn);
       end if;
       l_num  :=  l_num + 1;
     end loop; -- end loop read file
@@ -1249,7 +1428,8 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
   procedure read_instruction_file(constant file_name:  string;
                                   variable inst_set:   inout inst_def_ptr;
                                   variable var_list:   inout var_field_ptr;
-                                  variable inst_sequ:  inout stim_line_ptr) is
+                                  variable inst_sequ:  inout stim_line_ptr;
+                                  variable file_list:  inout file_def_ptr) is
     variable l:          text_line; -- the line
     variable l_num:      integer;   -- line number file
     variable sequ_line:  integer;   -- line number program
@@ -1270,7 +1450,10 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
     variable v_stat:     file_open_status;
     variable v_name:     text_line;
     variable v_iname:    text_line;
-    
+    variable v_tmp_fn:   file_def_ptr;
+    variable v_fn_idx:   integer;
+    variable v_idx:      integer;
+                             
   begin
     -- open the stimulus_file and check
     file_open(v_stat, stimulus, file_name, read_mode);
@@ -1281,7 +1464,19 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
     for i in 1 to file_name'high loop
       v_name(i)  := file_name(i);
     end loop;
-    
+    -- the first item on the file names link list
+    file_list           :=  null;
+    v_tmp_fn            :=  new file_def;
+    v_tmp_fn.rec_idx    := 1;
+    v_fn_idx            := 1;
+    v_idx               := 1;
+    --  nul the text line
+    v_tmp_fn.file_name  := (others => nul);
+    for i in 1 to file_name'high loop
+      v_tmp_fn.file_name(i)  := file_name(i);
+    end loop;
+    v_tmp_fn.next_rec  :=  null;
+
     l_num      :=  1;
     sequ_line  :=  1;
     v_ostat    :=  0;
@@ -1298,19 +1493,29 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
       v_len  := fld_len(t1);
       -- if there is an INCLUDE instruction
       if(t1(1 to v_len) = "INCLUDE") then
+        -- if file name is in par2
         if(valid = 2) then
           v_iname  := (others => nul);
           for i in 1 to max_field_len loop
             v_iname(i) := t2(i);
           end loop;
-        else
+        -- elsif the text string is not null
+        elsif(t_txt /= null) then
           v_iname  := (others => nul);
           for i in 1 to c_stm_text_len loop
             v_iname(i) := t_txt(i);
-          end loop;          
+            if(t_txt(i) = nul) then
+              exit;
+            end if;
+          end loop;
+        else
+          assert(false)
+            report LF & "Error:  INCLUDE instruction has not file name included.  Found on" & LF &
+                        "line " & (integer'image(l_num)) & " in file " & file_name & LF
+          severity failure;
         end if;
         print("INCLUDE found: Loading file " & v_iname);
-        read_include_file(v_iname,sequ_line,v_inst_ptr,v_var_prt,v_sequ_ptr,v_ostat);
+        read_include_file(v_iname,sequ_line,v_tmp_fn,v_inst_ptr,v_var_prt,v_sequ_ptr,v_ostat);
         -- if include file not found
         if(v_ostat = 1) then
           exit;
@@ -1318,7 +1523,8 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
       -- if there was valid tokens
       elsif(valid /= 0) then
         check_valid_inst(t1, v_inst_ptr, valid, l_num, v_name);
-        add_instruction(v_sequ_ptr,v_var_prt,t1,t2,t3,t4,t5,t6,t7,t_txt,valid,sequ_line,l_num,v_name);
+        add_instruction(v_sequ_ptr,v_var_prt,t1,t2,t3,t4,t5,t6,t7,t_txt,valid,
+                        sequ_line,l_num,v_name,v_fn_idx);
       end if;
       l_num  :=  l_num + 1;
     end loop; -- end loop read file
@@ -1326,20 +1532,45 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
     file_close(stimulus);  -- close the file when done
 
     assert(v_ostat = 0)
-      report LF & "Include file not found! Test Terminated" & LF
+      report LF & "Include file specified on line " & (integer'image(l_num)) &
+                  " in file " &  file_name &
+                  " was not found! Test Terminated" & LF
     severity failure;
     
     inst_set   :=  v_inst_ptr;
     var_list   :=  v_var_prt;
     inst_sequ  :=  v_sequ_ptr;
+    file_list  :=  v_tmp_fn;
+    
+    --  Now that all the stimulus is loaded, test for invalid variables
+    test_inst_sequ(inst_sequ, v_tmp_fn, var_list);
+
   end read_instruction_file;
 
 ------------------------------------------------------------------------------
 -- access_inst_sequ
 --  This procedure accesses the instruction sequence and returns the parameters
---  as the exsist related to the variables state.
+--  as they exsist related to the variables state.
+--  INPUTS:   inst_sequ  link list of instructions from stimulus
+--            var_list   link list of variables
+--            file_list  link list of file names
+--            sequ_num   the sequence number to recover
+--
+--  OUTPUTS:  inst  instruction text
+--            p1    paramiter 1 in integer form
+--            p2    paramiter 2 in integer form
+--            p3    paramiter 3 in integer form
+--            p4    paramiter 4 in integer form
+--            p5    paramiter 5 in integer form
+--            p6    paramiter 6 in integer form
+--            txt   pointer to any text string of this sequence
+--            inst_len  the lenth of inst in characters
+--            fname  file name this sequence came from
+--            file_line  the line number in fname this sequence came from
+--            
   procedure access_inst_sequ(variable inst_sequ  :  in  stim_line_ptr;
                              variable var_list   :  in  var_field_ptr;
+                             variable file_list  :  in  file_def_ptr;
                              variable sequ_num   :  in  integer;
                              variable inst       :  out text_field;
                              variable p1         :  out integer;
@@ -1359,12 +1590,9 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
     variable valid:               integer;
     variable line:                integer;  -- value of the file_line
     variable file_name:           text_line;
+    variable tmp_int:             integer;
+    variable temp_fn_prt:         file_def_ptr;
   begin
---    inst_ptr  :=  inst_sequ;
---    while(inst_ptr.next_rec /= null) loop
---      print_inst(inst_ptr);
---      inst_ptr := inst_ptr.next_rec;
---    end loop;
    -- get to the instruction indicated by sequ_num
     inst_ptr  :=  inst_sequ;
     while(inst_ptr.next_rec /= null) loop
@@ -1379,8 +1607,19 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
     inst_len := fld_len(inst_ptr.instruction);
     file_line := inst_ptr.file_line;
     line      := inst_ptr.file_line;
-    file_name := inst_ptr.file_name;
-    fname     := inst_ptr.file_name;
+    -- recover the file name this line came from
+    temp_fn_prt := file_list;
+    tmp_int   :=  inst_ptr.file_idx;
+    while (temp_fn_prt.next_rec /= null) loop
+      if(temp_fn_prt.rec_idx = tmp_int) then
+        exit;
+      end if;
+      temp_fn_prt  :=  temp_fn_prt.next_rec;
+    end loop;
+    for i in 1 to fname'high loop
+      file_name(i) :=  temp_fn_prt.file_name(i);
+    end loop;
+
     txt       := inst_ptr.txt;
     -- load parameter one
     temp_text_field  :=  inst_ptr.inst_field_1;
@@ -1491,28 +1730,30 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
 --  This procedure dumps to the simulation window the current instruction
 --  sequence.  The whole thing will be dumped, which could be big.
 --   ** intended for testbench development debug **
-  procedure dump_inst_sequ(variable inst_sequ  :  in  stim_line_ptr) is
-    variable v_sequ  :  stim_line_ptr;
-  begin
-    v_sequ  :=  inst_sequ;
-    while(v_sequ.next_rec /= null) loop
-      print("-----------------------------------------------------------------");
-      print("Instruction is " & v_sequ.instruction & "     Par1: "   & v_sequ.inst_field_1 &
-      "     Par2: "   & v_sequ.inst_field_2 & "     Par3: "   & v_sequ.inst_field_3 &
-      "     Par4: "   & v_sequ.inst_field_4);
-      print("Line Number: " & to_str(v_sequ.line_number) & "     File Line Number: " & to_str(v_sequ.file_line) &
-      "     File Name: " & v_sequ.file_name);
-      
-      v_sequ  :=  v_sequ.next_rec;
-    end loop;
-    -- get the last one
-    print("-----------------------------------------------------------------");
-    print("Instruction is " & v_sequ.instruction & "     Par1: "   & v_sequ.inst_field_1 &
-    "     Par2: "   & v_sequ.inst_field_2 & "     Par3: "   & v_sequ.inst_field_3 &
-    "     Par4: "   & v_sequ.inst_field_4);
-    print("Line Number: " & to_str(v_sequ.line_number) & "     File Line Number: " & to_str(v_sequ.file_line) &
-    "     File Name: " & v_sequ.file_name);
-  end dump_inst_sequ;
+--  procedure dump_inst_sequ(variable inst_sequ  :  in  stim_line_ptr) is
+--    variable v_sequ  :  stim_line_ptr;
+--  begin
+--    v_sequ  :=  inst_sequ;
+--    while(v_sequ.next_rec /= null) loop
+--      print("-----------------------------------------------------------------");
+--      print("Instruction is " & v_sequ.instruction &
+--      "     Par1: "   & v_sequ.inst_field_1 &
+--      "     Par2: "   & v_sequ.inst_field_2 &
+--      "     Par3: "   & v_sequ.inst_field_3 &
+--      "     Par4: "   & v_sequ.inst_field_4);
+--      print("Line Number: " & to_str(v_sequ.line_number) & "     File Line Number: " & to_str(v_sequ.file_line) &
+--      "     File Name: " & v_sequ.file_name);
+--      
+--      v_sequ  :=  v_sequ.next_rec;
+--    end loop;
+--    -- get the last one
+--    print("-----------------------------------------------------------------");
+--    print("Instruction is " & v_sequ.instruction & "     Par1: "   & v_sequ.inst_field_1 &
+--    "     Par2: "   & v_sequ.inst_field_2 & "     Par3: "   & v_sequ.inst_field_3 &
+--    "     Par4: "   & v_sequ.inst_field_4);
+--    print("Line Number: " & to_str(v_sequ.line_number) & "     File Line Number: " & to_str(v_sequ.file_line) &
+--    "     File Name: " & v_sequ.file_name);
+--  end dump_inst_sequ;
 
 -------------------------------------------------------------------------------
 -- Procedure to print messages to stdout
@@ -1531,7 +1772,7 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
     
     if (ptr /= null) then
       txt_str := (others => nul);
-      for i in 1 to 128 loop
+      for i in 1 to c_stm_text_len loop
         if (ptr(i) = nul) then
           exit;
         end if;
@@ -1563,7 +1804,7 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
       i := 1;
       j := 1;
       txt_str := (others => nul);
-      while(i <= 128 and j <= 128) loop
+      while(i <= c_stm_text_len and j <= c_stm_text_len) loop
         if(ptr(i) /= '$') then
           txt_str(j) := ptr(i);
           i := i + 1;

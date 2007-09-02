@@ -3,11 +3,11 @@
 -------------------------------------------------------------------------------
 -- $Author: sckoarn $
 --
--- $Date: 2007-08-21 02:43:14 $
+-- $Date: 2007-09-02 04:04:04 $
 --
 -- $Name: not supported by cvs2svn $
 --
--- $Id: tb_pkg_header.vhd,v 1.2 2007-08-21 02:43:14 sckoarn Exp $
+-- $Id: tb_pkg_header.vhd,v 1.3 2007-09-02 04:04:04 sckoarn Exp $
 --
 -- $Source: /home/marcus/revision_ctrl_test/oc_cvs/cvs/vhld_tb/source/tb_pkg_header.vhd,v $
 --
@@ -22,7 +22,7 @@
 --    the Free Software Foundation; either version 2 of the License, or
 --    (at your option) any later version.
 --
---    Foobar is distributed in the hope that it will be useful,
+--    The VHDL Test Bench is distributed in the hope that it will be useful,
 --    but WITHOUT ANY WARRANTY; without even the implied warranty of
 --    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 --    GNU General Public License for more details.
@@ -33,6 +33,9 @@
 -------------------------------------------------------------------------------
 -- Revision History:
 -- $Log: not supported by cvs2svn $
+-- Revision 1.2  2007/08/21 02:43:14  sckoarn
+-- Fix package definition to match with body
+--
 -- Revision 1.1.1.1  2007/04/06 04:06:48  sckoarn
 -- Import of the vhld_tb
 --
@@ -51,7 +54,7 @@ package tb_pkg is
   -- Constants
   constant max_str_len   : integer := 256;
   constant max_field_len : integer := 48;
-  constant c_stm_text_len  : integer := 128;
+  constant c_stm_text_len  : integer := 200;
   -- file handles
   file stimulus     : text;             -- file main file
   file include_file : text;             -- file declaration for includes
@@ -82,7 +85,7 @@ package tb_pkg is
     line_number:   integer;      -- sequence line
     num_of_lines:  integer;      -- total number of lines
     file_line:     integer;      -- file line number
-    file_name:     text_line;
+    file_idx:      integer;
     next_rec:      stim_line_ptr;
   end record;
   -- define the variables field and pointer
@@ -103,13 +106,19 @@ package tb_pkg is
     params:          integer;
     next_rec:        inst_def_ptr;
   end record;
+  -- define the file handle record
+  type file_def;
+  type file_def_ptr is access file_def;
+  type file_def is record
+    rec_idx:         integer;
+    file_name:       text_line;
+    next_rec:        file_def_ptr;
+  end record;
   
 ---*****************************************************************************
   -- Function Declaration
 --  function str_len(variable line: text_line) return text_field;
 --  function fld_len(s : in text_field) integer;
-    function ew_to_slv(value : in integer;
-                       length : in integer) return std_logic_vector;
 
     function c2std_vec(c: in character) return std_logic_vector;
     
@@ -158,7 +167,8 @@ package tb_pkg is
   procedure read_instruction_file(constant file_name:  string;
                                   variable inst_set:   inout inst_def_ptr;
                                   variable var_list:   inout var_field_ptr;
-                                  variable inst_sequ:  inout stim_line_ptr);
+                                  variable inst_sequ:  inout stim_line_ptr;
+                                  variable file_list:  inout file_def_ptr);
 
 ------------------------------------------------------------------------------
 -- access_inst_sequ
@@ -167,6 +177,7 @@ package tb_pkg is
 --   any variables substituted as integers.
   procedure access_inst_sequ(variable inst_sequ  :  in  stim_line_ptr;
                              variable var_list   :  in  var_field_ptr;
+                             variable file_list  :  in  file_def_ptr;
                              variable sequ_num   :  in  integer;
                              variable inst       :  out text_field;
                              variable p1         :  out integer;
@@ -217,6 +228,6 @@ package tb_pkg is
 --  This procedure dumps to the simulation window the current instruction
 --  sequence.  The whole thing will be dumped, which could be big.
 --   ** intended for testbench development debug**
-  procedure dump_inst_sequ(variable inst_sequ  :  in  stim_line_ptr);
+--  procedure dump_inst_sequ(variable inst_sequ  :  in  stim_line_ptr);
   
 end tb_pkg;

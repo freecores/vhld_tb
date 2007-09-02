@@ -3,11 +3,11 @@
 -------------------------------------------------------------------------------
 -- $Author: sckoarn $
 --
--- $Date: 2007-04-06 04:06:48 $
+-- $Date: 2007-09-02 04:04:04 $
 --
 -- $Name: not supported by cvs2svn $
 --
--- $Id: template_tb_bhv.vhd,v 1.1.1.1 2007-04-06 04:06:48 sckoarn Exp $
+-- $Id: template_tb_bhv.vhd,v 1.2 2007-09-02 04:04:04 sckoarn Exp $
 --
 -- $Source: /home/marcus/revision_ctrl_test/oc_cvs/cvs/vhld_tb/source/template_tb_bhv.vhd,v $
 --
@@ -22,7 +22,7 @@
 --    the Free Software Foundation; either version 2 of the License, or
 --    (at your option) any later version.
 --
---    Foobar is distributed in the hope that it will be useful,
+--    The VHDL Test Bench  is distributed in the hope that it will be useful,
 --    but WITHOUT ANY WARRANTY; without even the implied warranty of
 --    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 --    GNU General Public License for more details.
@@ -33,6 +33,9 @@
 -------------------------------------------------------------------------------
 -- Revision History:
 -- $Log: not supported by cvs2svn $
+-- Revision 1.1.1.1  2007/04/06 04:06:48  sckoarn
+-- Import of the vhld_tb
+--
 --
 -------------------------------------------------------------------------------
 
@@ -80,6 +83,7 @@ clock_driver:
     variable inst_list    : inst_def_ptr;  -- the instruction list
     variable defined_vars : var_field_ptr; -- defined variables
     variable inst_sequ    : stim_line_ptr; -- the instruction sequence
+    variable file_list    : file_def_ptr;  -- pointer to the list of file names
 
     variable instruction  : text_field;   -- instruction field
     variable par1         : integer;      -- paramiter 1
@@ -110,11 +114,12 @@ clock_driver:
     variable wh_end       : boolean  := FALSE;
     variable rand         : std_logic_vector(31 downto 0);
     variable rand_back    : std_logic_vector(31 downto 0);
+    variable valid        : integer;
     
+    --  scratchpad variables
     variable temp_int     : integer;
     variable temp_index   : integer;
     variable temp_str     : text_field;
-    variable valid        : integer;
     variable v_temp_vec1  : std_logic_vector(31 downto 0);
     variable v_temp_vec2  : std_logic_vector(31 downto 0);
 
@@ -153,6 +158,7 @@ clock_driver:
     define_instruction(inst_list, "LOOP", 1);
     define_instruction(inst_list, "END_LOOP", 0);
     define_instruction(inst_list, "IF", 3);
+    define_instruction(inst_list, "ELSEIF", 3);
     define_instruction(inst_list, "ELSE", 0);
     define_instruction(inst_list, "END_IF", 0);
     define_instruction(inst_list, "WHILE", 3);
@@ -167,22 +173,23 @@ clock_driver:
 
     ------------------------------------------------------------------------
     -- Read, test, and load the stimulus file
-    read_instruction_file(stimulus_file, inst_list, defined_vars, inst_sequ);
+    read_instruction_file(stimulus_file, inst_list, defined_vars, inst_sequ,
+                          file_list);
 
 ------------------------------------------------------------------------
 -- Using the Instruction record list, get the instruction and implement
 -- it as per the statements in the elsif tree.
   while(v_line < inst_sequ.num_of_lines) loop
     v_line := v_line + 1;
-    access_inst_sequ(inst_sequ, defined_vars, v_line, instruction,
+    access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
          par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
 
 --------------------------------------------------------------------------
-    if(instruction(1 to len) = "DEFINE_VAR") then
-      null;  -- This instruction was implemented while reading the file
+    --if(instruction(1 to len) = "DEFINE_VAR") then
+    --  null;  -- This instruction was implemented while reading the file
       
 --------------------------------------------------------------------------
-    elsif(instruction(1 to len) = "INCLUDE") then
+    if(instruction(1 to len) = "INCLUDE") then
       null;  -- This instruction was implemented while reading the file
       
 --------------------------------------------------------------------------
@@ -297,14 +304,14 @@ clock_driver:
 
        if(if_state = false) then
          v_line := v_line + 1;
-         access_inst_sequ(inst_sequ, defined_vars, v_line, instruction,
+         access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
              par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
          while(instruction(1 to len) /= "ELSE" and
                instruction(1 to len) /= "ELSEIF" and
                instruction(1 to len) /= "END_IF") loop
            if(v_line < inst_sequ.num_of_lines) then
              v_line := v_line + 1;
-             access_inst_sequ(inst_sequ, defined_vars, v_line, instruction,
+             access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
                  par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
            else
              assert (false)
@@ -320,12 +327,12 @@ clock_driver:
      elsif (instruction(1 to len) = "ELSEIF") then
        if(if_state = true) then  -- if the if_state is true then skip to the end
          v_line := v_line + 1;
-         access_inst_sequ(inst_sequ, defined_vars, v_line, instruction,
+         access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
              par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
          while(instruction(1 to len) /= "END_IF") loop
            if(v_line < inst_sequ.num_of_lines) then
              v_line := v_line + 1;
-             access_inst_sequ(inst_sequ, defined_vars, v_line, instruction,
+             access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
                  par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
            else
              assert (false)
@@ -354,14 +361,14 @@ clock_driver:
        
          if(if_state = false) then
            v_line := v_line + 1;
-           access_inst_sequ(inst_sequ, defined_vars, v_line, instruction,
+           access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
                par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
            while(instruction(1 to len) /= "ELSE" and
                  instruction(1 to len) /= "ELSEIF" and
                  instruction(1 to len) /= "END_IF") loop
              if(v_line < inst_sequ.num_of_lines) then
                v_line := v_line + 1;
-               access_inst_sequ(inst_sequ, defined_vars, v_line, instruction,
+               access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
                    par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
              else
                assert (false)
@@ -378,12 +385,12 @@ clock_driver:
      elsif (instruction(1 to len) = "ELSE") then
        if(if_state = true) then  -- if the if_state is true then skip the else
          v_line := v_line + 1;
-         access_inst_sequ(inst_sequ, defined_vars, v_line, instruction,
+         access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
              par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
          while(instruction(1 to len) /= "END_IF") loop
            if(v_line < inst_sequ.num_of_lines) then
              v_line := v_line + 1;
-             access_inst_sequ(inst_sequ, defined_vars, v_line, instruction,
+             access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
                  par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
            else
              assert (false)
@@ -425,7 +432,7 @@ clock_driver:
          while(wh_end /= true) loop
            if(v_line < inst_sequ.num_of_lines) then
              v_line := v_line + 1;
-             access_inst_sequ(inst_sequ, defined_vars, v_line, instruction,
+             access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
                  par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
            else
              assert (false)
@@ -477,11 +484,13 @@ clock_driver:
     --------------------------------------------------------------------------
     -- catch those little mistakes
     else
-      assert (messages)
-        report LF & "ERROR:  Seems the command stated in the stm file was not found" & LF &
-                    "but is valid, please check the spelling of the instruction in the elsif chain."
+      assert (false)
+        report LF & "ERROR:  Seems the command  " & instruction(1 to len) & " was defined but" & LF &
+                    "was not found in the elsif chain, please check spelling."
         severity failure;
     end if;  -- else if structure end
+    -- after the instruction is finished print out any txt and sub vars
+    txt_print_wvar(defined_vars, txt, hex);
   end loop;  -- Main Loop end
   
   assert (false)
