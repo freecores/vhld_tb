@@ -3,11 +3,11 @@
 -------------------------------------------------------------------------------
 -- $Author: sckoarn $
 --
--- $Date: 2007-09-02 04:04:04 $
+-- $Date: 2007-11-14 02:35:56 $
 --
 -- $Name: not supported by cvs2svn $
 --
--- $Id: template_tb_bhv.vhd,v 1.2 2007-09-02 04:04:04 sckoarn Exp $
+-- $Id: template_tb_bhv.vhd,v 1.3 2007-11-14 02:35:56 sckoarn Exp $
 --
 -- $Source: /home/marcus/revision_ctrl_test/oc_cvs/cvs/vhld_tb/source/template_tb_bhv.vhd,v $
 --
@@ -33,6 +33,10 @@
 -------------------------------------------------------------------------------
 -- Revision History:
 -- $Log: not supported by cvs2svn $
+-- Revision 1.2  2007/09/02 04:04:04  sckoarn
+-- Update of version 1.2 tb_pkg
+-- See documentation for details
+--
 -- Revision 1.1.1.1  2007/04/06 04:06:48  sckoarn
 -- Import of the vhld_tb
 --
@@ -410,12 +414,12 @@ clock_driver:
      elsif (instruction(1 to len) = "WHILE") then
        wh_state  :=  false;
        case par2 is
-         when 0 => if(par1 = par3) then if_state  :=  true; end if;
-         when 1 => if(par1 > par3) then if_state  :=  true; end if;
-         when 2 => if(par1 < par3) then if_state  :=  true; end if;
-         when 3 => if(par1 /= par3) then if_state :=  true; end if;
-         when 4 => if(par1 >= par3) then if_state :=  true; end if;
-         when 5 => if(par1 <= par3) then if_state :=  true; end if;
+         when 0 => if(par1 =  par3) then wh_state :=  true; end if;
+         when 1 => if(par1 >  par3) then wh_state :=  true; end if;
+         when 2 => if(par1 <  par3) then wh_state :=  true; end if;
+         when 3 => if(par1 /= par3) then wh_state :=  true; end if;
+         when 4 => if(par1 >= par3) then wh_state :=  true; end if;
+         when 5 => if(par1 <= par3) then wh_state :=  true; end if;
          when others =>
            assert (false)
              report LF & "ERROR:  WHILE instruction got an unexpected value" &
