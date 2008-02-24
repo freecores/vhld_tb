@@ -3,11 +3,11 @@
 -------------------------------------------------------------------------------
 -- $Author: sckoarn $
 --
--- $Date: 2007-09-02 04:04:04 $
+-- $Date: 2008-02-24 01:34:11 $
 --
 -- $Name: not supported by cvs2svn $
 --
--- $Id: tb_pkg_header.vhd,v 1.3 2007-09-02 04:04:04 sckoarn Exp $
+-- $Id: tb_pkg_header.vhd,v 1.4 2008-02-24 01:34:11 sckoarn Exp $
 --
 -- $Source: /home/marcus/revision_ctrl_test/oc_cvs/cvs/vhld_tb/source/tb_pkg_header.vhd,v $
 --
@@ -33,6 +33,10 @@
 -------------------------------------------------------------------------------
 -- Revision History:
 -- $Log: not supported by cvs2svn $
+-- Revision 1.3  2007/09/02 04:04:04  sckoarn
+-- Update of version 1.2 tb_pkg
+-- See documentation for details
+--
 -- Revision 1.2  2007/08/21 02:43:14  sckoarn
 -- Fix package definition to match with body
 --
@@ -189,7 +193,9 @@ package tb_pkg is
                              variable txt        :  out stm_text_ptr;
                              variable inst_len   :  out integer;
                              variable fname      :  out text_line;
-                             variable file_line  :  out integer
+                             variable file_line  :  out integer;
+                             variable last_num   :  inout integer;
+                             variable last_ptr   :  inout stim_line_ptr
                              );
 ------------------------------------------------------------------------
 --  tokenize_line

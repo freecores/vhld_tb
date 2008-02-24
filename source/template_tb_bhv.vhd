@@ -3,11 +3,11 @@
 -------------------------------------------------------------------------------
 -- $Author: sckoarn $
 --
--- $Date: 2007-11-14 02:35:56 $
+-- $Date: 2008-02-24 01:34:11 $
 --
 -- $Name: not supported by cvs2svn $
 --
--- $Id: template_tb_bhv.vhd,v 1.3 2007-11-14 02:35:56 sckoarn Exp $
+-- $Id: template_tb_bhv.vhd,v 1.4 2008-02-24 01:34:11 sckoarn Exp $
 --
 -- $Source: /home/marcus/revision_ctrl_test/oc_cvs/cvs/vhld_tb/source/template_tb_bhv.vhd,v $
 --
@@ -33,6 +33,9 @@
 -------------------------------------------------------------------------------
 -- Revision History:
 -- $Log: not supported by cvs2svn $
+-- Revision 1.3  2007/11/14 02:35:56  sckoarn
+-- Fix to WHILE instruction: Change if_state typo to wh_state
+--
 -- Revision 1.2  2007/09/02 04:04:04  sckoarn
 -- Update of version 1.2 tb_pkg
 -- See documentation for details
@@ -88,6 +91,8 @@ clock_driver:
     variable defined_vars : var_field_ptr; -- defined variables
     variable inst_sequ    : stim_line_ptr; -- the instruction sequence
     variable file_list    : file_def_ptr;  -- pointer to the list of file names
+    variable last_sequ_num: integer;
+    variable last_sequ_ptr: stim_line_ptr;
 
     variable instruction  : text_field;   -- instruction field
     variable par1         : integer;      -- paramiter 1
@@ -180,13 +185,17 @@ clock_driver:
     read_instruction_file(stimulus_file, inst_list, defined_vars, inst_sequ,
                           file_list);
 
+    -- initialize last info
+    last_sequ_num  := 0;
+    last_sequ_ptr  := inst_sequ;
 ------------------------------------------------------------------------
 -- Using the Instruction record list, get the instruction and implement
 -- it as per the statements in the elsif tree.
   while(v_line < inst_sequ.num_of_lines) loop
     v_line := v_line + 1;
     access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
-         par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
+         par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line,
+         last_sequ_num, last_sequ_ptr);
 
 --------------------------------------------------------------------------
     --if(instruction(1 to len) = "DEFINE_VAR") then
@@ -269,11 +278,11 @@ clock_driver:
 
 --------------------------------------------------------------------------------
      elsif (instruction(1 to len) = "LOOP") then
- 	loop_num := loop_num + 1;
+    loop_num := loop_num + 1;
         loop_line(loop_num) := v_line;
         curr_loop_count(loop_num) := 0;
         term_loop_count(loop_num) := par1;
- 	assert (messages)
+    assert (messages)
           report LF & "Executing LOOP Command" &
                  LF & "  Nested Loop:" & HT & integer'image(loop_num) & 
                  LF & "  Loop Length:" & HT & integer'image(par1)
@@ -309,14 +318,16 @@ clock_driver:
        if(if_state = false) then
          v_line := v_line + 1;
          access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
-             par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
+            par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line,
+            last_sequ_num, last_sequ_ptr);
          while(instruction(1 to len) /= "ELSE" and
                instruction(1 to len) /= "ELSEIF" and
                instruction(1 to len) /= "END_IF") loop
            if(v_line < inst_sequ.num_of_lines) then
              v_line := v_line + 1;
              access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
-                 par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
+                 par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line,
+                 last_sequ_num, last_sequ_ptr);
            else
              assert (false)
               report LF & "ERROR:  IF instruction unable to find terminating" &
@@ -332,12 +343,14 @@ clock_driver:
        if(if_state = true) then  -- if the if_state is true then skip to the end
          v_line := v_line + 1;
          access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
-             par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
+             par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line,
+             last_sequ_num, last_sequ_ptr);
          while(instruction(1 to len) /= "END_IF") loop
            if(v_line < inst_sequ.num_of_lines) then
              v_line := v_line + 1;
              access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
-                 par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
+                 par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line,
+                 last_sequ_num, last_sequ_ptr);
            else
              assert (false)
               report LF & "ERROR:  IF instruction unable to find terminating" &
@@ -366,14 +379,16 @@ clock_driver:
          if(if_state = false) then
            v_line := v_line + 1;
            access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
-               par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
+               par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line,
+               last_sequ_num, last_sequ_ptr);
            while(instruction(1 to len) /= "ELSE" and
                  instruction(1 to len) /= "ELSEIF" and
                  instruction(1 to len) /= "END_IF") loop
              if(v_line < inst_sequ.num_of_lines) then
                v_line := v_line + 1;
                access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
-                   par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
+                   par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line,
+                   last_sequ_num, last_sequ_ptr);
              else
                assert (false)
                 report LF & "ERROR:  ELSEIF instruction unable to find terminating" &
@@ -390,12 +405,14 @@ clock_driver:
        if(if_state = true) then  -- if the if_state is true then skip the else
          v_line := v_line + 1;
          access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
-             par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
+             par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line,
+             last_sequ_num, last_sequ_ptr);
          while(instruction(1 to len) /= "END_IF") loop
            if(v_line < inst_sequ.num_of_lines) then
              v_line := v_line + 1;
              access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
-                 par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
+                 par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line,
+                 last_sequ_num, last_sequ_ptr);
            else
              assert (false)
               report LF & "ERROR:  IF instruction unable to find terminating" &
@@ -437,7 +454,8 @@ clock_driver:
            if(v_line < inst_sequ.num_of_lines) then
              v_line := v_line + 1;
              access_inst_sequ(inst_sequ, defined_vars, file_list, v_line, instruction,
-                 par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line);
+                 par1, par2, par3, par4, par5, par6, txt, len, file_name, file_line,
+                 last_sequ_num, last_sequ_ptr);
            else
              assert (false)
                report LF & "ERROR:  WHILE instruction unable to find terminating" &

@@ -3,11 +3,11 @@
 -------------------------------------------------------------------------------
 -- $Author: sckoarn $
 --
--- $Date: 2007-09-02 04:04:04 $
+-- $Date: 2008-02-24 01:34:11 $
 --
 -- $Name: not supported by cvs2svn $
 --
--- $Id: tb_pkg_body.vhd,v 1.2 2007-09-02 04:04:04 sckoarn Exp $
+-- $Id: tb_pkg_body.vhd,v 1.3 2008-02-24 01:34:11 sckoarn Exp $
 --
 -- $Source: /home/marcus/revision_ctrl_test/oc_cvs/cvs/vhld_tb/source/tb_pkg_body.vhd,v $
 --
@@ -33,6 +33,10 @@
 -------------------------------------------------------------------------------
 -- Revision History:
 -- $Log: not supported by cvs2svn $
+-- Revision 1.2  2007/09/02 04:04:04  sckoarn
+-- Update of version 1.2 tb_pkg
+-- See documentation for details
+--
 -- Revision 1.1.1.1  2007/04/06 04:06:48  sckoarn
 -- Import of the vhld_tb
 --
@@ -1582,7 +1586,9 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
                              variable txt        :  out stm_text_ptr;
                              variable inst_len   :  out integer;
                              variable fname      :  out text_line;
-                             variable file_line  :  out integer
+                             variable file_line  :  out integer;
+                             variable last_num   :  inout integer;
+                             variable last_ptr   :  inout stim_line_ptr
                              ) is
     variable temp_text_field:     text_field;
     variable temp_var:            text_field;
@@ -1594,14 +1600,33 @@ procedure add_variable(variable var_list  :   inout  var_field_ptr;
     variable temp_fn_prt:         file_def_ptr;
   begin
    -- get to the instruction indicated by sequ_num
-    inst_ptr  :=  inst_sequ;
-    while(inst_ptr.next_rec /= null) loop
-      if(inst_ptr.line_number = sequ_num) then
-        exit;
-      else
-        inst_ptr := inst_ptr.next_rec;
-      end if;
-    end loop;
+   -- check to see if this sequence is before the last
+   --    so search from start
+    if(last_num  > sequ_num) then
+      inst_ptr  :=  inst_sequ;
+      while(inst_ptr.next_rec /= null) loop
+        if(inst_ptr.line_number = sequ_num) then
+          exit;
+        else
+          inst_ptr := inst_ptr.next_rec;
+        end if;
+      end loop;
+    -- else is equal or greater, so search forward
+    else
+      inst_ptr  :=  last_ptr;
+      while(inst_ptr.next_rec /= null) loop
+        if(inst_ptr.line_number = sequ_num) then
+          exit;
+        else
+          inst_ptr := inst_ptr.next_rec;
+        end if;
+      end loop;
+    end if;
+
+    -- update the last sequence number and record pointer
+    last_num  :=  sequ_num;
+    last_ptr  :=  inst_ptr;
+    
     -- output the instruction and its length
     inst := inst_ptr.instruction;
     inst_len := fld_len(inst_ptr.instruction);
